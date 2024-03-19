@@ -1,63 +1,57 @@
+import csv
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-from scipy.signal import find_peaks
+from matplotlib.animation import FuncAnimation
 
-def read_csv(filename, chunksize):
-    # Read the CSV file in chunks
-    chunks = pd.read_csv(filename, usecols=[0], header=None, chunksize=chunksize)
-    return chunks
+# csv constants
+# 300 entries per second
+csv_interval = 300 # Samples per second
 
-def detect_peaks(signal):
-    # Find peaks in the signal
-    peaks, _ = find_peaks(signal)
+# Initialize plot
+fig, ax = plt.subplots()
+line, = ax.plot([], [], label='Data')
+ax.set_xlabel('Time')
+ax.set_ylabel('Value')
+ax.legend()
+
+def process_csv_data(data):
+    # Process the CSV data (example: extract time and value)
+    # Does so by emulating real time, I was unaware of the timing convention, but can also do this dynamically
+    # if needed --> preprocess data to find out times, then update variables    value = float(data[0])
+    value = float(data[0])
+
+    if xdata:
+        time_stamp = xdata[-1] + 1.0 / csv_interval
+    else:
+        time_stamp = 0  # Initial timestamp if xdata is empty
+    return time_stamp, value
+
+def update_plot(frame):
+    try:
+        row = next(csv_reader)     # Read next row from CSV file
+    except StopIteration:
+        ani.event_source.stop()
+        return
+
+    time_stamp, value = process_csv_data(row)
     
-    # Create a binary signal with peaks = 1 and everything else = 0
-    peaks_signal = np.zeros_like(signal)
-    peaks_signal[peaks] = 1
+    # Update plot
+    xdata.append(time_stamp)
+    ydata.append(value)
+    line.set_data(xdata, ydata)
     
-    return peaks_signal
+    # Adjust plot limits
+    ax.relim()
+    ax.autoscale_view()
 
-csv_filename = "vs_8x5_003_Tx20_ECG.csv" # Out File
-total_indices = 30000
-update_interval = 150
+def emulate_real_time(csv_file):
+    global csv_reader
+    with open(csv_file, 'r') as file:
+        csv_reader = csv.reader(file) # Read CSV file
+        ani = FuncAnimation(fig, update_plot, interval=1)  # Update plot every millisecond
+        plt.show()
 
-# Initial plot setup
-plt.ion()  # Turn on interactive mode
-fig, (ax_signal, ax_peaks) = plt.subplots(2, 1)
-
-try:
-    chunks = read_csv(csv_filename, update_interval)
-    plotted_indices = 0
-    for chunk in chunks:
-        signal_chunk = chunk.values.flatten()
-        
-        # Detect peaks
-        peaks_signal_chunk = detect_peaks(signal_chunk)
-        
-        # Plot original signal
-        ax_signal.clear()
-        ax_signal.plot(np.arange(plotted_indices, plotted_indices + update_interval), signal_chunk)
-        ax_signal.set_title('Original Signal')
-        ax_signal.set_xlabel('Time')
-        ax_signal.set_ylabel('Amplitude')
-        
-        # Plot detected peaks
-        ax_peaks.clear()
-        ax_peaks.plot(np.arange(plotted_indices, plotted_indices + update_interval), peaks_signal_chunk, color='red')
-        ax_peaks.set_title('Detected Peaks')
-        ax_peaks.set_xlabel('Time')
-        ax_peaks.set_ylabel('Peaks')
-        
-        plt.subplots_adjust(hspace=0.5)  # Adjust spacing between subplots
-        
-        plt.draw()
-        plt.pause(0.1)
-        
-        # Update plotted indices
-        plotted_indices += update_interval
-        if plotted_indices >= total_indices:
-            break
-
-except KeyboardInterrupt:
-    print("Keyboard interrupt. Exiting...")
+if __name__ == "__main__":
+    csv_file = "vs_8x5_003_Tx20_ECG.csv"  # CSV file from Fidel
+    xdata, ydata = [], []
+    emulate_real_time(csv_file)
