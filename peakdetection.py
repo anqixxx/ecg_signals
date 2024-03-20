@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from scipy import signal
+import scipy
 import numpy as np
 
 
@@ -24,7 +25,6 @@ ax_filtered.set_xlabel('Time')
 ax_filtered.set_ylabel('Filtered Signal')
 ax_signal.legend()
 ax_filtered.legend()
-
 
 def process_csv_data(data):
     # Process the CSV data (example: extract time and value)
@@ -82,7 +82,7 @@ def emulate_real_time(csv_file):
         ani = FuncAnimation(fig, update_plot, interval=1)  # Update plot every millisecond
         plt.show()
 
-def full_filter():
+def stack_filter():
     signal_data = np.loadtxt(csv_file, delimiter=',', usecols=(0,))
     filtered_result = apply_filter(signal_data)
 
@@ -111,7 +111,26 @@ def full_filter():
     plt.subplots_adjust(wspace=0.5, hspace=0.5)
     plt.show()
 
+def sam_filter(csv_file):
+    yraw = np.loadtxt(csv_file, delimiter=',', usecols=(0,))
+    fs = 300  # Sampling frequency
+    num_samples = len(yraw)
+
+    ts = np.linspace(0, num_samples / fs, num_samples)  # time vector - 5 seconds
+
+    b, a = scipy.signal.iirfilter(4, Wn=2.5, fs=fs, btype="low", ftype="butter")
+    print(b, a, sep="\n")
+    y_lfilter = scipy.signal.lfilter(b, a, yraw)
+
+    plt.figure(figsize=[6.4, 2.4])
+
+    plt.plot(ts, yraw, label="Raw signal")
+    plt.plot(ts, y_lfilter, alpha=0.8, lw=3, label="SciPy lfilter")
+
+    plt.xlabel("Time / s")
+    plt.ylabel("Amplitude")
+    plt.legend(loc="lower center", bbox_to_anchor=[0.5, 1],
+            ncol=2, fontsize="smaller")
 if __name__ == "__main__":
     csv_file = "vs_8x5_003_Tx20_ECG.csv"  # CSV file from Fidel
     xdata, ydata = [], []
-    emulate_real_time(csv_file)
