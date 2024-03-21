@@ -73,7 +73,6 @@ def update_plot(frame):
     line_signal.set_data(time_data, ydata)
     line_filtered.set_data(time_data, filtered_data)
     ax_filtered.scatter(np.array(time_data)[rpeaks], np.array(filtered_data)[rpeaks], color='green', marker='o', label='R-Peaks')
-
     # Adjust plot limits
     ax_signal.relim()
     ax_signal.autoscale_view()
@@ -87,42 +86,6 @@ def emulate_real_time(csv_file):
         ani = FuncAnimation(fig, update_plot, interval=1)  # Update plot every millisecond
         plt.show()
 
-def stack_filter():
-    signal_data = np.loadtxt(csv_file, delimiter=',', usecols=(0,))
-    signal_data = signal_data[:3000]  # Limit to 10 seconds of data
-    filtered_result = apply_filter(signal_data)
-
-    # Not working even on full signal
-    _, results = nk.ecg_peaks(filtered_result, sampling_rate=csv_interval)
-    rpeaks = results["ECG_R_Peaks"]
-    print(rpeaks)
-
-    plt.figure(figsize=(10, 6))
-    plt.subplot(2, 1, 1)
-    plt.plot(signal_data, label='Original Signal', color='blue')
-    plt.xlabel('Sample Index')
-    plt.ylabel('Amplitude')
-    plt.title('Original Signal')
-    plt.legend()
-    plt.grid(True)
-
-    # Plot the filtered signal
-    plt.subplot(2, 1, 2)
-    plt.plot(filtered_result, label='Filtered Signal', color='red')
-    plt.scatter(rpeaks, filtered_result[rpeaks], marker = 'o')
-    plt.xlabel('Sample Index')
-    plt.ylabel('Amplitude')
-    plt.title('Filtered Signal - Stack Filter')
-    plt.legend()
-    plt.grid(True)
-
-    plt.tight_layout()  # Adjust layout to prevent overlap
-    
-    # Enable zooming
-    plt.subplots_adjust(left=0.1, bottom=0.1, right=0.9, top=0.9, wspace=None, hspace=0.5)
-    plt.subplots_adjust(wspace=0.5, hspace=0.5)
-    plt.show()
-    
 def nk_filt():
     signal_data = np.loadtxt(csv_file, delimiter=',', usecols=(0,))
     # Clean (filter and detrend)
