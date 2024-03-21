@@ -19,14 +19,14 @@ normalized_cutoff_frequency = cutoff_frequency / nyquist_frequency
 num_taps = 100  # Number of filter taps, I got this from stack overflow
 
 # # Initialize Plot
-# fig, (ax_signal, ax_filtered) = plt.subplots(2, 1)
-# line_signal, = ax_signal.plot([], [], label='Original Data', color='blue')
-# line_filtered, = ax_filtered.plot([], [], label='Filtered Data', color='red')
-# ax_signal.set_ylabel('Original Signal')
-# ax_filtered.set_xlabel('Time')
-# ax_filtered.set_ylabel('Filtered Signal')
-# ax_signal.legend()
-# ax_filtered.legend()
+fig, (ax_signal, ax_filtered) = plt.subplots(2, 1)
+line_signal, = ax_signal.plot([], [], label='Original Data', color='blue')
+line_filtered, = ax_filtered.plot([], [], label='Filtered Data', color='red')
+ax_signal.set_ylabel('Original Signal')
+ax_filtered.set_xlabel('Time')
+ax_filtered.set_ylabel('Filtered Signal')
+ax_signal.legend()
+ax_filtered.legend()
 
 def process_csv_data(data):
     # Process the CSV data (example: extract time and value)
@@ -39,15 +39,12 @@ def process_csv_data(data):
         time_stamp = 0  # Initial timestamp if xdata is empty
     return time_stamp, value
 
-def apply_filter(data):
-    # Design the filter, using live filter from scipy
-    b = signal.firwin(num_taps, cutoff=normalized_cutoff_frequency)
-    
-    zi = signal.lfilter_zi(b, 1)     # Initialize the filter state
-    
-    filtered_data, _ = signal.lfilter(b, 1, data, zi=zi)
-    
-    return filtered_data
+def apply_filter(signal_data):
+   # Design the filter, using live filter from nk
+    # Right now just filters all at once, can think of way to reduce computational time
+    cleaned = nk.signal_filter(signal_data, sampling_rate=300, lowcut=4, highcut=0.5)
+    return cleaned
+
 
 def update_plot(frame):
     try:
@@ -62,21 +59,20 @@ def update_plot(frame):
     # but it makes more time to do batches to sped it up
     time_data.append(time_stamp)
     ydata.append(value)
-    filtered_data = (apply_filter(ydata))
     
     # Use library to find R-Peaks, waits 1 seconds to get enough data
     if len(time_data) > sampling_frequency :
+        filtered_data = (apply_filter(ydata))
         _, results = nk.ecg_peaks(filtered_data, sampling_rate=csv_interval)
         rpeaks = results["ECG_R_Peaks"]
-
-        print(rpeaks)
     else:
         rpeaks = []
+        filtered_data = []
 
     # Update lines
     line_signal.set_data(time_data, ydata)
     line_filtered.set_data(time_data, filtered_data)
-    # ax_filtered.scatter(time_data[rpeaks], filtered_data[rpeaks], color='green', marker='o', label='R-Peaks')
+    ax_filtered.scatter(np.array(time_data)[rpeaks], np.array(filtered_data)[rpeaks], color='green', marker='o', label='R-Peaks')
 
     # Adjust plot limits
     ax_signal.relim()
@@ -132,10 +128,11 @@ def nk_filt():
     # Clean (filter and detrend)
     # signal_data = signal_data[:3000]  # Limit to 10 seconds of data
     signal_data = nk.ecg_clean(signal_data, sampling_rate=300, method='neurokit')
-    cleaned = nk.signal_filter(signal_data, sampling_rate=300, highcut=4)
+    cleaned = nk.signal_filter(signal_data, sampling_rate=300, lowcut=4, highcut=0.5)
+    # cleaned = nk.signal_filter(cleaned, sampling_rate=300, lowcut=4, highcut=0.5)
 
     # Extract R-peaks locations
-    signals, results = nk.ecg_peaks(cleaned, sampling_rate=300, method='neurokit', show=True)
+    signals, results = nk.ecg_peaks(signal_data, sampling_rate=300, method='neurokit', show=True)
     rpeaks = results["ECG_R_Peaks"]
     print(rpeaks)
     print(signals)
@@ -151,14 +148,13 @@ def nk_filt():
 
     # Plot the filtered signal
     plt.subplot(2, 1, 2)
-    plt.plot(cleaned, label='Filtered Signal', color='red')
-    plt.scatter(rpeaks, cleaned[rpeaks], marker = 'o')
+    plt.plot(signal_data, label='Filtered Signal', color='red')
+    plt.scatter(rpeaks, signal_data[rpeaks], marker = 'o')
     plt.xlabel('Sample Index')
     plt.ylabel('Amplitude')
     plt.title('Filtered Signal - NeuroKit2')
     plt.legend()
     plt.grid(True)
-
     plt.tight_layout()  # Adjust layout to prevent overlap
     
     # Enable zooming
@@ -167,8 +163,8 @@ def nk_filt():
     plt.show()
 
 if __name__ == "__main__":
-    csv_file = "vs_8x5_004_Tx1_ECG.csv"  # CSV file from Fidel
+    csv_file = "vs_8x5_003_Tx20_ECG.csv"  # CSV file from Fidel
     time_data, ydata = [], []
-    # emulate_real_time(csv_file)
-    nk_filt()
+    emulate_real_time(csv_file)
+    # nk_filt()
     # stack_filter()
